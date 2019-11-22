@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -45,6 +46,7 @@ type FlagSet struct {
 	Watch      bool
 	Checkpoint string
 
+	chdir   string
 	Logfile string
 	LogDir  string
 	Quiet   bool
@@ -75,6 +77,7 @@ func (f *FlagSet) Register(flag *flag.FlagSet) {
 	flag.BoolVar(&f.Watch, "w", false, "watch config")
 	flag.StringVar(&f.Checkpoint, "checkpoint", "0", "")
 
+	flag.StringVar(&f.chdir, "C", ".", "change work directory")
 	flag.StringVar(&f.Logfile, "logfile", "", "path to log file")
 	flag.StringVar(&f.LogDir, "logdir", "", "path to log dir")
 	flag.BoolVar(&f.Quiet, "q", false, "don't log debug info")
@@ -85,6 +88,9 @@ var errMissingProgramName = errors.New("missing program name")
 func (f *FlagSet) Parse() error {
 	f.Register(flag.CommandLine)
 	flag.Parse()
+	if err := os.Chdir(f.chdir); err != nil {
+		utils.ExitErr(err)
+	}
 	args := flag.Args()
 	if len(args) < 1 {
 		return errMissingProgramName
