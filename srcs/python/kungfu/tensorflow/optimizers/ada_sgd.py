@@ -66,18 +66,19 @@ class _AdaptiveSGD(_KungFuAlgorithm):
 
 
 class AdaSGDHook(_tf_hook):
-    def __init__(self, change_step):
+    def __init__(self):
         super(AdaSGDHook, self).__init__()
-        self._change_step = change_step
-
+        self._changed_yet = False
+    
     def begin(self):
         from kungfu.tensorflow.ops import broadcast
         self._ops = [tf.assign(v, broadcast(v)) for v in tf.global_variables()]
-
-    def after_create_session(self, session, coord):
-        self._global_step = tf.train.get_global_step()
+        self._changed = tf.get_default_graph().get_tensor_by_name("changed:0")
 
     def after_run(self, run_context, run_values):
-        global_step = run_context.session.run(self._global_step)
-        if self._change_step == global_step:
+        change = run_context.session.run(self._changed)
+        print("change %d", change)
+        if change == 0 and not self._changed_yet:
+            print("RUN REINIT OP")
             run_context.session.run(self._ops)
+            self._changed_yet = True
