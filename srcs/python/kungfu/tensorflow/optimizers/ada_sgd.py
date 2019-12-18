@@ -77,8 +77,6 @@ class AdaSGDHook(_tf_hook):
 
     def after_run(self, run_context, run_values):
         change = run_context.session.run(self._changed)
-        print("change %d", change)
         if change == 0 and not self._changed_yet:
-            print("RUN REINIT OP")
             run_context.session.run(self._ops)
             self._changed_yet = True
