@@ -1,9 +1,16 @@
+#include <algorithm>
 #include <cstdio>
+#include <sstream>
+#include <vector>
 
 #include <kungfu/nccl/gpu_collective.hpp>
+#include <kungfu/python/init.h>
 #include <kungfu/utils/cuda_helper.hpp>
+#include <kungfu/utils/trace.hpp>
 
 #include <nccl.h>
+
+DEFINE_TRACE_CONTEXT(nccl);
 
 struct show_nccl_error {
     std::string operator()(ncclResult_t err) const
@@ -45,7 +52,6 @@ template <> struct nccl_type<float> {
 
 namespace kungfu
 {
-
 ncclDataType_t to_nccl_type(const KungFu_Datatype dtype)
 {
     switch (dtype) {
@@ -73,30 +79,36 @@ class gpu_collective_nccl : public gpu_collective
     gpu_collective_nccl(ncclUniqueId id, int cluster_size, int rank)
         : _rank(rank), _cluster_size(cluster_size)
     {
-        KUNGFU_CHECK(cuda_checker) << cudaSetDevice(0);
         KUNGFU_CHECK(nccl_checker)
             << ncclCommInitRank(&comm, cluster_size, id, rank);
     }
 
-    ~gpu_collective_nccl() { ncclCommDestroy(comm); }
+    ~gpu_collective_nccl()
+    {
+        KUNGFU_CHECK(nccl_checker) << ncclCommDestroy(comm);
+    }
 
     void all_reduce(const void *send_buf, void *recv_buf, size_t count,
                     KungFu_Datatype dtype)
     {
+        TRACE_SCOPE(__func__);
         // https://docs.nvidia.com/deeplearning/sdk/nccl-developer-guide/docs/api/colls.html#ncclallreduce
         KUNGFU_CHECK(nccl_checker)
             << ncclAllReduce(send_buf, recv_buf, count, to_nccl_type(dtype),
                              ncclSum, comm, _stream);
-        _stream.sync();
+        {
+            TRACE_SCOPE("_stream.sync");
+            _stream.sync();
+        }
     }
 };
 
 gpu_collective *new_gpu_collective(kungfu_world &world)
 {
-
     ncclUniqueId id;
     const int root = 0;
     const int rank = world.Rank();
+    KUNGFU_CHECK(cuda_checker) << cudaSetDevice(kungfu_get_cuda_index());
     if (rank == root) { KUNGFU_CHECK(nccl_checker) << ncclGetUniqueId(&id); }
     world.Broadcast(&id, &id, sizeof(id), type_encoder::value<uint8_t>(),
                     "nccl id");

@@ -1,12 +1,15 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 
 #include "collective_mpi_impl.hpp"
 #include "fake_model.hpp"
 #include "fake_trainer.hpp"
 #include "testing.hpp"
+
+DEFINE_TRACE_CONTEXTS;
 
 int main(int argc, char *argv[])
 {
