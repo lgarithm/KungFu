@@ -30,7 +30,7 @@ func main() {
 	if err != nil {
 		fmt.Println("Cannot unmarshal content")
 	}
-	for i := 0; i < 10; i++ {
+	for i := 0;; i++ {
 		newPeerList := peerList
 
 		// the first entry stays as the first entry
