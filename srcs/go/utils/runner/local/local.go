@@ -16,11 +16,23 @@ import (
 )
 
 type Runner struct {
-	Name          string
-	Color         xterm.Color
-	LogDir        string
-	LogFilePrefix string
-	VerboseLog    bool
+	name          string
+	color         xterm.Color
+	logDir        string
+	logFilePrefix string
+	verboseLog    bool
+}
+
+func (r *Runner) SetName(name string) {
+	r.name = name
+}
+
+func (r *Runner) SetVerbose(verbose bool) {
+	r.verboseLog = verbose
+}
+
+func (r *Runner) SetLogFilePrefix(prefix string) {
+	r.logFilePrefix = prefix
 }
 
 // Run a command with context
@@ -37,11 +49,11 @@ func (r Runner) Run(ctx context.Context, cmd *exec.Cmd) error {
 	defer stderr.Close()
 	results := iostream.StdReaders{Stdout: stdout, Stderr: stderr}
 	var redirectors []*iostream.StdWriters
-	if r.VerboseLog {
-		redirectors = append(redirectors, iostream.NewXTermRedirector(r.Name, r.Color))
+	if r.verboseLog {
+		redirectors = append(redirectors, iostream.NewXTermRedirector(r.name, r.color))
 	}
-	if len(r.LogFilePrefix) > 0 {
-		redirectors = append(redirectors, iostream.NewFileRedirector(path.Join(r.LogDir, r.LogFilePrefix)))
+	if len(r.logFilePrefix) > 0 {
+		redirectors = append(redirectors, iostream.NewFileRedirector(path.Join(r.logDir, r.logFilePrefix)))
 	}
 	ioDone := results.Stream(redirectors...)
 	if err := cmd.Start(); err != nil {
@@ -72,11 +84,11 @@ func RunAll(ctx context.Context, ps []job.Proc, verboseLog bool) error {
 		wg.Add(1)
 		go func(i int, proc job.Proc) {
 			r := &Runner{
-				Name:          proc.Name,
-				Color:         xterm.BasicColors.Choose(i),
-				VerboseLog:    verboseLog,
-				LogFilePrefix: strings.Replace(proc.Name, "/", "-", -1),
-				LogDir:        proc.LogDir,
+				name:          proc.Name,
+				color:         xterm.BasicColors.Choose(i),
+				verboseLog:    verboseLog,
+				logFilePrefix: strings.Replace(proc.Name, "/", "-", -1),
+				logDir:        proc.LogDir,
 			}
 			if err := r.Run(ctx, proc.Cmd()); err != nil {
 				log.Errorf("#<%s> exited with error: %v", proc.Name, err)

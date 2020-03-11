@@ -112,24 +112,16 @@ class _PairAveraging(_KungFuAlgorithm):
         target = get_random_peer(np, rank)
         gradients, variables = list(zip(*grads_and_vars))
 
-        # filter out grad == None
-        filtered_variables = [
-            var for (grad, var) in list(zip(gradients, variables))
-            if grad is not None
-        ]
-
         init_store_op = tf.cond(tf.equal(self._step, 0),
-                                lambda: self.init_store(filtered_variables),
-                                tf.no_op)
+                                lambda: self.init_store(variables), tf.no_op)
         with tf.control_dependencies([init_store_op]):
-            other_peer_vars = self._build_request_ops(target,
-                                                      filtered_variables)
+            other_peer_vars = self._build_request_ops(target, variables)
 
-        save_model_op = self._build_save_op(filtered_variables)
+        save_model_op = self._build_save_op(variables)
 
         assign_ops = [
             _tf_assign(v, 0.5 * (v + other_v))
-            for v, other_v in zip(filtered_variables, other_peer_vars)
+            for v, other_v in zip(variables, other_peer_vars)
         ]
 
         # We need to re-zip gradients and variables as grads_and_vars can be only unzipped once.

@@ -39,20 +39,18 @@ const (
 
 type Logger struct {
 	sync.Mutex
-	outWriter io.Writer
-	errWriter io.Writer
-	buf       []byte
-	t0        time.Time
-	level     Level
-	flags     uint32
+	w     io.Writer
+	buf   []byte
+	t0    time.Time
+	level Level
+	flags uint32
 }
 
 func New() *Logger {
 	l := &Logger{
-		outWriter: os.Stdout,
-		errWriter: os.Stderr,
-		t0:        time.Now(),
-		level:     parseLogLevel(kungfuconfig.LogLevel),
+		w:     os.Stdout,
+		t0:    time.Now(),
+		level: parseLogLevel(kungfuconfig.LogLevel),
 	}
 	return l
 }
@@ -74,7 +72,7 @@ func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%dd %02d:%02d:%02d %6.2fms", n, hh, mm, ss, float64(ns)/float64(time.Millisecond))
 }
 
-func (l *Logger) output(w io.Writer, prefix, format string, v ...interface{}) {
+func (l *Logger) output(prefix, format string, v ...interface{}) {
 	l.Lock()
 	defer l.Unlock()
 	d := time.Since(l.t0)
@@ -92,41 +90,40 @@ func (l *Logger) output(w io.Writer, prefix, format string, v ...interface{}) {
 	if len(s) == 0 || s[len(s)-1] != '\n' {
 		l.buf = append(l.buf, '\n')
 	}
-	w.Write(l.buf)
+	l.w.Write(l.buf)
 }
 
-func (l *Logger) logf(w io.Writer, level Level, prefix, format string, v ...interface{}) {
+func (l *Logger) logf(level Level, prefix, format string, v ...interface{}) {
 	if level >= l.level {
-		l.output(w, prefix, format, v...)
+		l.output(prefix, format, v...)
 	}
 }
 
 func (l *Logger) Debugf(format string, v ...interface{}) {
-	l.logf(l.outWriter, Debug, "[D]", format, v...)
+	l.logf(Debug, "[D]", format, v...)
 }
 
 func (l *Logger) Infof(format string, v ...interface{}) {
-	l.logf(l.outWriter, Info, "[I]", format, v...)
+	l.logf(Info, "[I]", format, v...)
 }
 
 func (l *Logger) Warnf(format string, v ...interface{}) {
-	l.logf(l.errWriter, Warn, "[W]", format, v...)
+	l.logf(Warn, "[W]", format, v...)
 }
 
 func (l *Logger) Errorf(format string, v ...interface{}) {
-	l.logf(l.errWriter, Error, xterm.Warn.S("[E]"), format, v...)
+	l.logf(Error, xterm.Warn.S("[E]"), format, v...)
 }
 
 func (l *Logger) Exitf(format string, v ...interface{}) {
-	l.logf(l.errWriter, Error, xterm.Warn.S("[F]"), format, v...)
+	l.logf(Error, xterm.Warn.S("[F]"), format, v...)
 	os.Exit(1)
 }
 
 func (l *Logger) SetOutput(w io.Writer) {
 	l.Lock()
 	defer l.Unlock()
-	l.outWriter = w
-	l.errWriter = w
+	l.w = w
 }
 
 func (l *Logger) SetFlags(fs ...uint32) {

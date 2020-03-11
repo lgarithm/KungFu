@@ -36,11 +36,6 @@ func GoKungfuFinalize() int {
 	return errorCode("Close", kungfu.Close())
 }
 
-//export GoKungfuUID
-func GoKungfuUID() uint64 {
-	return kungfu.UID()
-}
-
 //export GoKungfuClusterSize
 func GoKungfuClusterSize() int {
 	sess := kungfu.CurrentSession()

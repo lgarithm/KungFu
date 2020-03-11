@@ -84,15 +84,6 @@ func ParseHostList(hostlist string) (HostList, error) {
 	return hl, nil
 }
 
-func (hl HostList) SlotOf(ipv4 uint32) int {
-	for _, h := range hl {
-		if h.IPv4 == ipv4 {
-			return h.Slots
-		}
-	}
-	return 0
-}
-
 func (hl HostList) Cap() int {
 	var cap int
 	for _, h := range hl {
@@ -111,9 +102,15 @@ var DefaultPortRange = PortRange{
 	End:   11000,
 }
 
-const DefaultRunnerPort = uint16(38080)
-
 var errInvalidPortRange = errors.New("invalid port range")
+
+func getPortRangeFromEnv() (*PortRange, error) {
+	val, ok := os.LookupEnv(kb.PortRangeEnvKey)
+	if !ok {
+		return nil, fmt.Errorf("%s not set", kb.PortRangeEnvKey)
+	}
+	return ParsePortRange(val)
+}
 
 func ParsePortRange(val string) (*PortRange, error) {
 	var begin, end uint16
@@ -164,23 +161,15 @@ func (hl HostList) genPeerList(np int, pr PortRange) PeerList {
 	return pl
 }
 
-var ErrNoEnoughCapacity = errors.New("no enough capacity")
-
-func (hl HostList) GenRunnerList(port uint16) PeerList {
-	var pl PeerList
-	for _, h := range hl {
-		pl = append(pl, PeerID{IPv4: h.IPv4, Port: port})
-	}
-	return pl
-}
+var errNoEnoughCapacity = errors.New("no enough capacity")
 
 func (hl HostList) GenPeerList(np int, pr PortRange) (PeerList, error) {
 	if hl.Cap() < np {
-		return nil, ErrNoEnoughCapacity
+		return nil, errNoEnoughCapacity
 	}
 	for _, h := range hl {
 		if pr.Cap() < h.Slots {
-			return nil, ErrNoEnoughCapacity
+			return nil, errNoEnoughCapacity
 		}
 	}
 	return hl.genPeerList(np, pr), nil

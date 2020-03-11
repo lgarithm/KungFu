@@ -81,10 +81,3 @@ func (b *Vector) AsI32() []int32 {
 	}
 	return *(*[]int32)(b.sliceHeader())
 }
-
-func (b *Vector) AsI64() []int64 {
-	if b.Type != I64 {
-		utils.ExitErr(errInvalidDataType)
-	}
-	return *(*[]int64)(b.sliceHeader())
-}

@@ -10,7 +10,6 @@ import (
 	kb "github.com/lsds/KungFu/srcs/go/kungfubase"
 )
 
-// PeerList is an ordered list of PeerIDs
 type PeerList []PeerID
 
 func (pl PeerList) String() string {
@@ -21,10 +20,6 @@ func (pl PeerList) String() string {
 	return strings.Join(parts, ",")
 }
 
-func (pl PeerList) DebugString() string {
-	return fmt.Sprintf("[%d]{%s}", len(pl), pl)
-}
-
 func (pl PeerList) Bytes() []byte {
 	b := &bytes.Buffer{}
 	for _, p := range pl {
@@ -33,31 +28,26 @@ func (pl PeerList) Bytes() []byte {
 	return b.Bytes()
 }
 
-func (pl PeerList) Rank(q PeerID) (int, bool) {
+func (pl PeerList) Rank(ps PeerID) (int, bool) {
 	for i, p := range pl {
-		if p == q {
+		if p == ps {
 			return i, true
 		}
 	}
 	return -1, false
 }
 
-func (pl PeerList) LocalRank(q PeerID) (int, bool) {
+func (pl PeerList) LocalRank(ps PeerID) (int, bool) {
 	var i int
 	for _, p := range pl {
-		if p == q {
+		if p == ps {
 			return i, true
 		}
-		if p.ColocatedWith(q) {
+		if ps.ColocatedWith(p) {
 			i++
 		}
 	}
 	return -1, false
-}
-
-func (pl PeerList) Contains(p PeerID) bool {
-	_, ok := pl.Rank(p)
-	return ok
 }
 
 func (pl PeerList) Set() map[PeerID]struct{} {
@@ -77,21 +67,6 @@ func (pl PeerList) sub(ql PeerList) PeerList {
 		}
 	}
 	return a
-}
-
-func (pl PeerList) Intersection(ql PeerList) PeerList {
-	s := ql.Set()
-	var a PeerList
-	for _, p := range pl {
-		if _, ok := s[p]; ok {
-			a = append(a, p)
-		}
-	}
-	return a
-}
-
-func (pl PeerList) Disjoint(ql PeerList) bool {
-	return len(pl.Intersection(ql)) == 0
 }
 
 func (pl PeerList) Diff(ql PeerList) (PeerList, PeerList) {

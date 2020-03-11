@@ -1,6 +1,6 @@
 import tensorflow as tf
-from kungfu.tensorflow.ops import (counter, all_reduce, broadcast,
-                                   resize_cluster_from_url,
+from kungfu.tensorflow.ops import (counter, _get_init_step, all_reduce,
+                                   broadcast, resize_cluster,
                                    step_based_schedule)
 
 
@@ -17,39 +17,35 @@ config, max_step = get_config()
 
 
 def build_ops():
-    step_place = tf.placeholder(dtype=tf.int32, shape=())
-    new_step_op = step_based_schedule(config, step_place)
-    resize_op = resize_cluster_from_url()
-    return step_place, resize_op, new_step_op
+    init_step = int(_get_init_step())
+    print('init_step is %d' % (init_step))
+
+    step = counter(init_step)
+    schedule = step_based_schedule(config, step)
+    ckpt_tensor = tf.as_string(step + 1)
+    resize_op = resize_cluster(ckpt_tensor, schedule)
+    return init_step, resize_op
 
 
-step_place, resize_op, new_step_op = build_ops()
-sync_step_op = all_reduce(step_place, op='max')
+init_step, step_op = build_ops()
 x = tf.Variable(1, tf.int32)
 y = all_reduce(x)
 
-sync_state_op = tf.assign(x, broadcast(x))
+sync_op = tf.assign(x, broadcast(x))
 init_op = tf.global_variables_initializer()
 
 with tf.Session() as sess:
     sess.run(init_op)
     need_sync = True
-    i = 0
-    while i < max_step:
+    for i in range(init_step, max_step):
         if need_sync:
-            new_step = sess.run(sync_step_op, feed_dict={step_place: i})
-            print('sync step: %d -> %d' % (i, new_step))
-            i = new_step
-            sess.run(sync_state_op)
+            sess.run(sync_op)
 
         print(i)
         v = sess.run(y)
         print('step %d, np=%d' % (i, v))
 
         # must be called exactly once per step
-        new_step = sess.run(new_step_op, feed_dict={step_place: i})
-        print('propose new_step: %d' % (new_step))
-        need_sync, keep = sess.run(resize_op)
+        need_sync, keep = sess.run(step_op)
         if not keep:
             break
-        i += 1
